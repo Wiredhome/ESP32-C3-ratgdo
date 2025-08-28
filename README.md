@@ -1,9 +1,9 @@
 
 # ratgdo for ESPHome
 
-[Visit the ratcloud.llc to purchase boards](https://ratcloud.llc)
+The Goal for this variant, forked from the original, is to use an [ESP32-C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/) instead of the ESP8266 or the ESP32 which are not RISC-V based.
 
-The Goal for this variant, if I can work it out, is to use an [ESP32-C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/)
+[Follow this link to the original ratgdo](https://github.com/ratgdo/)
 
 ## Installation
 
