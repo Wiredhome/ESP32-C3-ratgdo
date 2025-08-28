@@ -3,6 +3,8 @@
 
 [Visit the ratcloud.llc to purchase boards](https://ratcloud.llc)
 
+The Goal for this variant, if I can work it out, is to use an [ESP32-C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/)
+
 ## Installation
 
 - Flash the ESPHome based firmware using the [Web Installer](https://ratgdo.github.io/esphome-ratgdo/)
