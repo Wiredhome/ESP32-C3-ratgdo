@@ -1,15 +1,42 @@
+#
+#                
+#                                 +----------------+
+#                                 |                |
+#                   laser_en <----| G0         G21 |<----- Rx  | 1/2 duplex mix circuit
+#                                 | G1         G20 |-----> Tx  |
+#                   audio    <----| G2         G10 |      
+#                                 | G3          G9 |                    |---+--o laser o-+5V
+#    ---/\/\/--+--- inp obst ---->| G4          G8 |                    |<| ^ 2N7002
+#              |                  | 3V3         G7 |       laser_en ----|_|_|
+#              /                  | GND         G6 |                      |
+#              \                  | 5V          G5 |                     gnd
+#              /                  |                |
+#              \                  +-----| USB |----+                    +--|>o--|(--[/
+#             gnd                       +-----+                         |           [  spkr
+#                                                          audio ---|>o-+----/\/\---[\
+#
+
 ---
 substitutions:
-  id_prefix: ratgdo32disco
-  friendly_name: "ratgdo32disco"
-  uart_tx_pin: GPIO17
+  id_prefix: myqkiller
+  friendly_name: "MyQ Killer"
+  uart_tx_pin: GPIO20
   uart_rx_pin: GPIO21
   input_obst_pin: GPIO4
-  status_door_pin: GPIO26
-  status_obstruction_pin: GPIO25
-  dry_contact_open_pin: GPIO13
-  dry_contact_close_pin: GPIO14
-  dry_contact_light_pin: GPIO27
+  audio_pin: GPIO2
+  laser_pin: GPIO0
+  #framework: arduino    # cannot use esp-idf for generic uart_tx and uart_rx to work
+  board_type: esp32-c3-devkitm-1
+  log_level: NONE    # VERY_VERBOSE, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE (uses same uart as 1/2 duplex)
+
+  # not used, point them somewhere 'safe'
+  status_door_pin: GPIO5
+  status_obstruction_pin: GPIO6
+  dry_contact_open_pin: GPIO7
+  dry_contact_close_pin: GPIO8
+  dry_contact_light_pin: GPIO9
+  led_pin: GPIO1
+  voltage_pin: GPIO3
 
 web_server:
   include_internal: true
@@ -24,16 +51,16 @@ esphome:
     version: "32disco"
 
 esp32:
-  board: esp32dev
+  board: ${board_type}
   framework:
     type: arduino
 
 dashboard_import:
-  package_import_url: github://ratgdo/esphome-ratgdo/v32disco.yaml@main
+  package_import_url: github://Wiredhome/ESP32-C3-ratgdo/v32disco.yaml@main
 
 packages:
   remote_package:
-    url: https://github.com/ratgdo/esphome-ratgdo
+    url: https://github.com/Wiredhome/ESP32-C3-ratgdo
     ref: main
     files: [base.yaml]
     refresh: 1s
@@ -51,12 +78,33 @@ api:
 improv_serial:
 
 wifi:
-  ap:
-    ssid: "ratgdo"
+  # If it connects and disconnects, over and over (or fails to connect),
+  # setting the output_power: 8.5db seems to help - nobody knows why.
+  #
+  output_power: 8.5dB
 
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${friendly_name}
+    #password: ${friendly_name}
+
+# This actually enables the captive portal, where it will bring you to its
+# internal web page showing available APs and letting you pick on and enter
+# SSID and password. It will then try to connect, or fall back to this portal.
+#
 captive_portal:
 
+# multicast dns might be enabled by default, but this explicitly documents
+# the intent to not disable it.
+mdns:
+  disabled: false
+
+
+#ota:
+  #- platform: esphome
+
 logger:
+  level: ${log_level}
   logs:
     sensor: NONE
 
@@ -91,7 +139,7 @@ number:
 
 output:
   - platform: ledc
-    pin: GPIO33
+    pin: ${audio_pin}
     id: ${id_prefix}_ledc
   - platform: ratgdo
     id: ${id_prefix}_beeper
@@ -107,13 +155,13 @@ switch:
   - platform: ratgdo
     id: ${id_prefix}_led
     type: led
-    pin: GPIO2
+    pin: ${led_pin}
     name: "LED"
     entity_category: config
   - platform: ratgdo
     id: ${id_prefix}_laser
     type: led
-    pin: GPIO23
+    pin: ${laser_pin}
     name: "LASER"
     entity_category: config
 
@@ -138,7 +186,7 @@ sensor:
           window_size: 5000
           send_every: 5000
   - platform: adc
-    pin: GPIO34
+    pin: ${voltage_pin}
     name: "Voltage"
     attenuation: auto
     update_interval: 60s
