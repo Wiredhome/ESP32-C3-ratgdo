@@ -1,0 +1,203 @@
+#
+#                
+#                                 +----------------+
+#                                 |                |
+#                   laser_en <----| G0         G21 |<----- Rx  | 1/2 duplex mix circuit
+#                                 | G1         G20 |-----> Tx  |
+#                   audio    <----| G2         G10 |      
+#                                 | G3          G9 |                    |---+--o laser o-+5V
+#    ---/\/\/--+--- inp obst ---->| G4          G8 |                    |<| ^ 2N7002
+#              |                  | 3V3         G7 |       laser_en ----|_|_|
+#              /                  | GND         G6 |                      |
+#              \                  | 5V          G5 |                     gnd
+#              /                  |                |
+#              \                  +-----| USB |----+                    +--|>o--|(--[/
+#             gnd                       +-----+                         |           [  spkr
+#                                                          audio ---|>o-+----/\/\---[\
+#
+
+---
+substitutions:
+  id_prefix: myqkiller
+  friendly_name: "MyQ Killer"
+  uart_tx_pin: GPIO20
+  uart_rx_pin: GPIO21
+  input_obst_pin: GPIO4
+  audio_pin: GPIO2
+  laser_pin: GPIO0
+  #framework: arduino    # cannot use esp-idf for generic uart_tx and uart_rx to work
+  board_type: esp32-c3-devkitm-1
+  log_level: NONE    # VERY_VERBOSE, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE (uses same uart as 1/2 duplex)
+
+  # not used, point them somewhere 'safe'
+  status_door_pin: GPIO5
+  status_obstruction_pin: GPIO6
+  dry_contact_open_pin: GPIO7
+  dry_contact_close_pin: GPIO8
+  dry_contact_light_pin: GPIO9
+  led_pin: GPIO1
+  voltage_pin: GPIO3
+
+web_server:
+  include_internal: true
+  local: true
+
+esphome:
+  name: ${id_prefix}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: true
+  project:
+    name: ratgdo.esphome
+    version: "32disco"
+
+esp32:
+  board: ${board_type}
+  framework:
+    type: arduino
+
+dashboard_import:
+  package_import_url: github://Wiredhome/ESP32-C3-ratgdo/v32disco.yaml@main
+
+packages:
+  remote_package:
+    url: https://github.com/Wiredhome/ESP32-C3-ratgdo
+    ref: main
+    files: [base.yaml]
+    refresh: 1s
+  # remote_package: !include
+  #   file: base.yaml
+
+# Sync time with Home Assistant.
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+api:
+  id: api_server
+
+improv_serial:
+
+wifi:
+  # If it connects and disconnects, over and over (or fails to connect),
+  # setting the output_power: 8.5db seems to help - nobody knows why.
+  #
+  output_power: 8.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${friendly_name}
+    #password: ${friendly_name}
+
+# This actually enables the captive portal, where it will bring you to its
+# internal web page showing available APs and letting you pick on and enter
+# SSID and password. It will then try to connect, or fall back to this portal.
+#
+captive_portal:
+
+# multicast dns might be enabled by default, but this explicitly documents
+# the intent to not disable it.
+mdns:
+  disabled: false
+
+
+#ota:
+  #- platform: esphome
+
+logger:
+  level: ${log_level}
+  logs:
+    sensor: NONE
+
+binary_sensor:
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_detected
+    type: vehicle_detected
+    name: "Vehicle detected"
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_arriving
+    type: vehicle_arriving
+    name: "Vehicle arriving"
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_leaving
+    type: vehicle_leaving
+    name: "Vehicle leaving"
+
+number:
+  - platform: ratgdo
+    id: ${id_prefix}_target_distance_measurement
+    type: target_distance_measurement
+    entity_category: config
+    name: "Vehicle distance target"
+    mode: box
+    unit_of_measurement: "mm"
+  - platform: ratgdo
+    id: ${id_prefix}_closing_delay
+    type: closing_delay
+    entity_category: config
+    name: "Closing Delay"
+    unit_of_measurement: "s"
+
+output:
+  - platform: ledc
+    pin: ${audio_pin}
+    id: ${id_prefix}_ledc
+  - platform: ratgdo
+    id: ${id_prefix}_beeper
+    type: beeper
+    rtttl: ${id_prefix}_rtttl
+    song: "alert:d=8,o=5,b=120:a,p,a,p,a,p,4b,p"
+
+rtttl:
+  - id: ${id_prefix}_rtttl
+    output: ${id_prefix}_ledc
+
+switch:
+  - platform: ratgdo
+    id: ${id_prefix}_led
+    type: led
+    pin: ${led_pin}
+    name: "LED"
+    entity_category: config
+  - platform: ratgdo
+    id: ${id_prefix}_laser
+    type: led
+    pin: ${laser_pin}
+    name: "LASER"
+    entity_category: config
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 120s
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_distance_actual
+    type: distance
+    name: "Vehicle distance actual"
+    unit_of_measurement: "mm"
+    internal: true
+    filters:
+      - throttle: 1ms
+      - heartbeat: 1ms
+  - platform: copy
+    source_id: ${id_prefix}_vehicle_distance_actual
+    name: Vehicle distance actual filtered
+    filters:
+      - min:
+          window_size: 5000
+          send_every: 5000
+  - platform: adc
+    pin: ${voltage_pin}
+    name: "Voltage"
+    attenuation: auto
+    update_interval: 60s
+    filters:
+    - calibrate_linear:
+        - 1.16 -> 5
+        - 2.783 -> 12
+    # uncomment to convert voltage scale to a % for lead acid batteries
+    #     - 2.43 -> 0   # 10.5v = 0%
+    #     - 2.98 -> 100 # 12.85 = 100%
+    # - clamp:
+    #     min_value: 0
+    #     max_value: 100
+    # unit_of_measurement: "%"
