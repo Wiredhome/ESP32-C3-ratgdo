@@ -15,7 +15,17 @@
 #             gnd                       +-----+                         |           [  spkr
 #                                                          audio ---|>o-+----/\/\---[\
 #
-
+# Updating:
+#   pip3 install esphome -U   								// Python utility to bring it up to date
+#	esphome -q update-all koratgdo_esp32_super_mini.yaml	// from the directory containing yaml files
+#
+#
+# If it doesn't build, you might try deleting everything in the folder:
+#	.esphome\build 
+#
+# ERROR:
+#	Two environments with different actions were specified for the same target... 
+#
 ---
 substitutions:
   id_prefix: myqkiller
@@ -25,7 +35,7 @@ substitutions:
   input_obst_pin: GPIO4
   audio_pin: GPIO2
   laser_pin: GPIO0
-  #framework: arduino    # cannot use esp-idf for generic uart_tx and uart_rx to work
+  framework: arduino    # cannot use esp-idf for generic uart_tx and uart_rx to work, so use arduino
   board_type: esp32-c3-devkitm-1
   log_level: NONE    # VERY_VERBOSE, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE (uses same uart as 1/2 duplex)
 
@@ -53,7 +63,7 @@ esphome:
 esp32:
   board: ${board_type}
   framework:
-    type: arduino
+    type: ${framework}
 
 dashboard_import:
   package_import_url: github://Wiredhome/ESP32-C3-ratgdo/v32disco.yaml@main
@@ -104,6 +114,7 @@ mdns:
   #- platform: esphome
 
 logger:
+  #hardware_uart: USB_SERIAL_JTAG
   level: ${log_level}
   logs:
     sensor: NONE
