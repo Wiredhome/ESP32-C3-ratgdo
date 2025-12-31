@@ -1,0 +1,171 @@
+#
+# ESP32-C3 Based version of RATGDO
+#
+#
+#                                 +-------+
+#                        +--------| USB-C |--------+
+#                        | GPIO5  |       |     5V |
+#                        | GPIO6  |       |    GND |
+#                        | GPIO7  +-------+    3V3 |
+#                        | GPIO8             GPIO4 | <----- pulse in
+#                        | GPIO9             GPIO3 |
+#                        | GPIO10            GPIO2 | >----- audio out
+#      ---+--------> Rx  | GPIO20            GPIO1 |
+#         +--------< Tx  | GPIO21            GPIO0 | -------> laser enable
+#                        +-------------------------+
+#                         ESP32 C3 Super Mini
+#
+#
+---
+substitutions:
+  id_prefix: ratgdo32disco
+  friendly_name: "ratgdo32disco"
+  uart_tx_pin: GPIO20
+  uart_rx_pin: GPIO21
+  input_obst_pin: GPIO4
+  laser_pin: GPIO0
+  audio_pin: GPIO2
+  
+  board_type: esp32-c3-devkitm-1
+  framework: esp-idf
+
+  
+  # not used
+  status_door_pin: GPIO5
+  status_obstruction_pin: GPIO6
+  dry_contact_open_pin: GPIO7
+  dry_contact_close_pin: GPIO8
+  dry_contact_light_pin: GPIO9
+  led_pin: GPIO10
+  voltage_pin: GPIO1
+
+web_server:
+  include_internal: true
+  local: true
+
+esphome:
+  name: ${id_prefix}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: true
+  project:
+    name: ratgdo.esphome
+    version: "32disco"
+
+esp32:
+  board: ${board_type}
+
+dashboard_import:
+  package_import_url: github://ratgdo/esphome-ratgdo/v32disco_secplusv1.yaml@main
+
+packages:
+  remote_package:
+    url: https://github.com/ratgdo/esphome-ratgdo
+    ref: main
+    files: [base_secplusv1.yaml]
+    refresh: 1s
+  # remote_package: !include
+  #   file: base_secplusv1.yaml
+
+# Sync time with Home Assistant.
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+api:
+  id: api_server
+
+improv_serial:
+
+wifi:
+  ap:
+
+logger:
+  logs:
+    sensor: NONE
+
+binary_sensor:
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_detected
+    type: vehicle_detected
+    name: "Vehicle detected"
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_arriving
+    type: vehicle_arriving
+    name: "Vehicle arriving"
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_leaving
+    type: vehicle_leaving
+    name: "Vehicle leaving"
+
+number:
+  - platform: ratgdo
+    id: ${id_prefix}_target_distance_measurement
+    type: target_distance_measurement
+    entity_category: config
+    name: "Vehicle distance target"
+    mode: box
+    unit_of_measurement: "mm"
+  - platform: ratgdo
+    id: ${id_prefix}_closing_delay
+    type: closing_delay
+    entity_category: config
+    name: "Closing Delay"
+    unit_of_measurement: "s"
+
+output:
+  - platform: ledc
+    pin: ${audio_pin}
+    id: ${id_prefix}_ledc
+  - platform: ratgdo
+    id: ${id_prefix}_beeper
+    type: beeper
+    rtttl: ${id_prefix}_rtttl
+    song: "alert:d=8,o=5,b=120:a,p,a,p,a,p,4b,p"
+
+rtttl:
+  - id: ${id_prefix}_rtttl
+    output: ${id_prefix}_ledc
+
+switch:
+  - platform: ratgdo
+    id: ${id_prefix}_led
+    type: led
+    pin: ${led_pin}
+    name: "LED"
+    entity_category: config
+  - platform: ratgdo
+    id: ${id_prefix}_laser
+    type: led
+    pin: ${laser_pin}
+    name: "LASER"
+    entity_category: config
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 120s
+  - platform: ratgdo
+    id: ${id_prefix}_vehicle_distance_actual
+    type: distance
+    name: "Vehicle distance actual"
+    unit_of_measurement: "mm"
+    internal: true
+    filters:
+      - throttle: 1ms
+      - heartbeat: 1ms
+  - platform: copy
+    source_id: ${id_prefix}_vehicle_distance_actual
+    name: Vehicle distance actual filtered
+    filters:
+      - min:
+          window_size: 5000
+          send_every: 5000
+  - platform: adc
+    pin: ${voltage_pin}
+    name: "Voltage"
+    attenuation: auto
+    update_interval: 60s
+    filters:
+    - calibrate_linear:
+        - 1.16 -> 5
+        - 2.783 -> 12
