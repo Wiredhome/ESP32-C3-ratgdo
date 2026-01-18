@@ -46,8 +46,9 @@ esphome:
   name: ${id_prefix}
   friendly_name: ${friendly_name}
   name_add_mac_suffix: true
+  min_version: 2025.12.0
   project:
-    name: ratgdo.esphome
+    name: ratgdo.v32disco_secplus2
     version: "32disco"
 
 esp32:
@@ -56,11 +57,13 @@ esp32:
     type: arduino
 
 dashboard_import:
-  package_import_url: github://Wiredhome/ESP32-C3-ratgdo/v32disco.yaml@main
+  package_import_url: github://ratgdo/esphome-ratgdo/v32disco.yaml@main
+ #package_import_url: github://Wiredhome/ESP32-C3-ratgdo/v32disco.yaml@main
 
 packages:
   remote_package:
     url: https://github.com/Wiredhome/ESP32-C3-ratgdo
+    #url: https://github.com/ratgdo/esphome-ratgdo
     ref: main
     files: [base.yaml]
     refresh: 1s
@@ -76,6 +79,9 @@ api:
   id: api_server
 
 improv_serial:
+
+esp32_improv:
+  authorizer: none
 
 wifi:
   # If it connects and disconnects, over and over (or fails to connect),
